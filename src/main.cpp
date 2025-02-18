@@ -9,9 +9,9 @@
 #include <cmath>
 
 struct Framebuffer {
-	Image cpuTexture;
-	Texture2D gpuTexture;	
-	float* zBuffer;
+    Image cpuTexture;
+    Texture2D gpuTexture;	
+    float* zBuffer;
 };
 
 Framebuffer allocateFramebuffer(int width, int height) {
@@ -26,7 +26,7 @@ Framebuffer allocateFramebuffer(int width, int height) {
 
     float* zBuffer = (float*)malloc(width * height * sizeof(float));
 	
-	return Framebuffer { renderImage, renderTexture, zBuffer };
+    return Framebuffer { renderImage, renderTexture, zBuffer };
 }
 
 void deallocateFramebuffer(Framebuffer fb) {
@@ -46,9 +46,9 @@ void drawDropDown(Rectangle rect, const char* label, const char* options, int* s
 int main ()
 {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-	InitWindow(1280, 800, "NMA ZS 2025");
+    InitWindow(1280, 800, "NMA ZS 2025");
 
-	SetTargetFPS(10000);
+    SetTargetFPS(10000);
 
     Framebuffer fb = allocateFramebuffer(GetRenderWidth(), GetRenderHeight());
 
@@ -60,8 +60,7 @@ int main ()
     renderer.lightDir = Vec3f(0, -1, -1); 
     normalize(renderer.lightDir);
 
-	while (!WindowShouldClose())
-	{
+    while (!WindowShouldClose()) {
         int width = GetRenderWidth();
         int height = GetRenderHeight();
 
@@ -114,15 +113,6 @@ int main ()
         };
         renderer.drawTriangle = triangleAlgs[triangleSelected];
 
-        static int shadingSelected = 0;
-        static std::function<Color(Renderer&, Face&, Vec3f)> shadingAlgs[] = {
-            noShading,
-            flatShading,
-            goroudShading,
-            phongShading,
-        };
-        renderer.shade = shadingAlgs[shadingSelected];
-
         static int sceneSelected = 0;
         static std::function<void(Renderer&)> scenes[] = {
             drawTest,
@@ -131,52 +121,67 @@ int main ()
             drawModel,
         };
         renderer.scene = scenes[sceneSelected];
-	    
-	    render(renderer);
-		UpdateTexture(fb.gpuTexture, fb.cpuTexture.data);
-		
-		BeginDrawing();
-		{
-		    ClearBackground(BLACK);
-		    DrawTexture(fb.gpuTexture, 0, 0, WHITE);
 
-		    // GUI
-		    {
+        static int shadingSelected = 0;
+        static std::function<Color(Renderer&, Face&, Vec3f)> shadingAlgs[] = {
+            noShading,
+            flatShading,
+            goroudShading,
+            phongShading,
+        };
+        // To prevent sampling textures on fake triangles
+        if (sceneSelected == 0) {
+            shadingSelected = 0;
+        }
+        renderer.shade = shadingAlgs[shadingSelected];
+	    
+        render(renderer);
+    		UpdateTexture(fb.gpuTexture, fb.cpuTexture.data);
+		
+    		BeginDrawing();
+    		{
+    		    ClearBackground(BLACK);
+    		    DrawTexture(fb.gpuTexture, 0, 0, WHITE);
+
+    		    // GUI
+    		    {
                 GuiCheckBox(Rectangle{0, 25, 25, 25}, "Move light", &moveLight);
 
                 static bool lineDropdownExpanded = false;
                 drawDropDown(Rectangle{0, 50, 150, 25}, "Line algorithm",
-                              "My custom;Bresenham;Optimised Bresenham;Wu", &lineSelected, &lineDropdownExpanded, true);
-                
+                    "My custom;Bresenham;Optimised Bresenham;Wu", &lineSelected, &lineDropdownExpanded, true);
+
                 static bool triangleDropdownExpanded = false;
                 drawDropDown(Rectangle{0, 75, 150, 25}, "Triangle algorithm",
-                              "My custom;Line sweep;Barycentric", &triangleSelected, &triangleDropdownExpanded,
-                              !lineDropdownExpanded);
+                    "My custom;Line sweep;Barycentric", &triangleSelected, &triangleDropdownExpanded,
+                    !lineDropdownExpanded);
 
                 static bool shadingDropdownExpanded = false;
                 drawDropDown(Rectangle{0, 100, 150, 25}, "Shading algorithm",
-                              "None;Flat;Goroud;Phong", &shadingSelected, &shadingDropdownExpanded,
-                              !lineDropdownExpanded && !triangleDropdownExpanded);
+                    "None;Flat;Goroud;Phong", &shadingSelected, &shadingDropdownExpanded,
+                    !lineDropdownExpanded && !triangleDropdownExpanded);
 
                 static bool sceneDropdownExpanded = false;
                 drawDropDown(Rectangle{0, 125, 150, 25}, "Scene",
-                              "Test;Wireframe;Random colors;Shaded", &sceneSelected, &sceneDropdownExpanded,
-                              !lineDropdownExpanded && !triangleDropdownExpanded && !shadingDropdownExpanded);
-		    }
+                    "Test;Wireframe;Random colors;Shaded", &sceneSelected, &sceneDropdownExpanded,
+                    !lineDropdownExpanded && !triangleDropdownExpanded && !shadingDropdownExpanded);
+    		    }
 		    
-		    Color color = LIME;
+            Color color = LIME;
             int fps = GetFPS();
             if ((fps < 30) && (fps >= 15)) color = ORANGE;
             else if (fps < 15) color = RED;
 
             DrawText(TextFormat("%.3f ms", GetFrameTime() * 1000.f), 0, 0, 20, color);
             DrawText(TextFormat("%2i FPS", fps), 150, 0, 20, color);
-		}
-		EndDrawing();
-	}
+
+            }
+
+        		EndDrawing();
+        }
 
     deallocateFramebuffer(fb);
+    CloseWindow();
 
-	CloseWindow();
-	return 0;
+    return 0;
 }
