@@ -201,12 +201,15 @@ Color noShading(Renderer& renderer, Face& face, Vec3f bary) {
 
 Color flatShading(Renderer& renderer, Face& face, Vec3f bary) {
     // TODO: implement flat shading.
+    return face.unshadedColor;
 }
 
 Color goroudShading(Renderer& renderer, Face& face, Vec3f bary) {
     // TODO: implement Goroud shading.
+    return face.unshadedColor;
 }
 
 Color phongShading(Renderer& renderer, Face& face, Vec3f bary) {
     // TODO: implement Phong shading.
+    return face.unshadedColor;
 }
