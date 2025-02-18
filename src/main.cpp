@@ -1,14 +1,12 @@
-#include "raylib.h"
+#include "model.h"
+#include "renderer.h"
+
+#include "raygui.h"
 
 #include <stdlib.h>
 #include <iostream>
 #include <algorithm>
 #include <cmath>
-
-#include "model.h"
-#include "renderer.h"
-
-#include "raygui.h"
 
 struct Framebuffer {
 	Image cpuTexture;

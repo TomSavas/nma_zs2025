@@ -1,10 +1,10 @@
 #pragma once
 
-#include <vector>
-
 #include "vec.h"
 
 #include "raylib.h"
+
+#include <vector>
 
 struct Vertex {
 	Vec3f worldPos;

@@ -1,11 +1,12 @@
+#include "model.h"
+#include "vec.h"
+
 #include <iostream>
 #include <string>
 #include <fstream>
 #include <sstream>
 #include <vector>
 
-#include "model.h"
-#include "vec.h"
 
 TexturedModel::TexturedModel(const char* filename, const char* diffuseTextureFilename) {// : verts_(), faces_() {
     std::ifstream in;
