@@ -4,15 +4,35 @@
 
 #include "vec.h"
 
-class MModel {
-private:
-	std::vector<Vec3f> verts_;
-	std::vector<std::vector<int> > faces_;
-public:
-	MModel() = default;
-	MModel(const char *filename);
-	int nverts();
-	int nfaces();
-	Vec3f vert(int i);
-	std::vector<int> face(int idx);
+#include "raylib.h"
+
+struct Vertex {
+	Vec3f worldPos;
+	Vec2f uv;
+	Vec3f normal;
 };
+
+struct Face {
+	Vertex points[3];
+	Vec3f normal;
+	Color unshadedColor = WHITE;
+	Image diffuseTexture;
+ };
+
+struct FaceIndices {
+	int vertIndex;
+	int uvIndex;
+	int normalIndex;
+};
+
+struct TexturedModel {
+	std::vector<Vec2f> uvs;
+	std::vector<Vec3f> normals;
+	std::vector<Vec3f> vertices;
+	std::vector<std::vector<FaceIndices>> faceIndices;
+	Image diffuse;
+
+	TexturedModel() = default;
+	TexturedModel(const char* filename, const char* diffuseTextureFilename);
+};
+Face faceData(TexturedModel& model, int i);

@@ -37,6 +37,14 @@ void deallocateFramebuffer(Framebuffer fb) {
     free(fb.zBuffer);
 }
 
+void drawDropDown(Rectangle rect, const char* label, const char* options, int* selected, bool* expanded, bool canOpen) {
+    if (canOpen && GuiDropdownBox(rect, options, selected, *expanded)) {
+        *expanded = !*expanded;
+    }
+    rect.x += 160;
+    GuiLabel(rect, label);
+}
+
 int main ()
 {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -48,7 +56,7 @@ int main ()
 
     Renderer renderer;
     renderer.rt = RenderTarget{(Color*)fb.cpuTexture.data, fb.cpuTexture.width, fb.cpuTexture.height, fb.zBuffer};
-    renderer.model = MModel("assets/test_model.obj");
+    renderer.model = TexturedModel("assets/test_model.obj", "assets/diffuse.png");
 
     renderer.lightColor = WHITE;
     renderer.lightDir = Vec3f(0, -1, -1); 
@@ -90,6 +98,41 @@ int main ()
         } else {
             renderer.lightDir = Vec3f(0, 0, -1);
         }
+
+        static int lineSelected = 0;
+        static std::function<void(RenderTarget&, Vec2f, Vec2f, Color)> lineAlgs[] = {
+            drawLine,
+            drawLineBresenham,
+            drawLineOptimisedBresenham,
+            drawLineWu,
+        };
+        renderer.drawLine = lineAlgs[lineSelected];
+
+        static int triangleSelected = 0;
+        static std::function<void(Renderer&, Vec3f, Vec3f, Vec3f, Face&)> triangleAlgs[] = {
+            drawTriangle,
+            drawTriangleLineSweep,
+            drawTriangleBarycentric,
+        };
+        renderer.drawTriangle = triangleAlgs[triangleSelected];
+
+        static int shadingSelected = 0;
+        static std::function<Color(Renderer&, Face&, Vec3f)> shadingAlgs[] = {
+            noShading,
+            flatShading,
+            goroudShading,
+            phongShading,
+        };
+        renderer.shade = shadingAlgs[shadingSelected];
+
+        static int sceneSelected = 0;
+        static std::function<void(Renderer&)> scenes[] = {
+            drawTest,
+            drawWireframeModel,
+            drawRandomColorModel,
+            drawModel,
+        };
+        renderer.scene = scenes[sceneSelected];
 	    
 	    render(renderer);
 		UpdateTexture(fb.gpuTexture, fb.cpuTexture.data);
@@ -99,25 +142,28 @@ int main ()
 		    ClearBackground(BLACK);
 		    DrawTexture(fb.gpuTexture, 0, 0, WHITE);
 
-            static int modeSelected = 0;
-            static int sceneSelected = 0;
 		    // GUI
 		    {
                 GuiCheckBox(Rectangle{0, 25, 25, 25}, "Move light", &moveLight);
 
-                static bool modeDropdownExpanded = false;
-                static const char* modes = "Wireframe;Random colors;Flat shaded;Flat shaded (Z buffer)";
-                if (GuiDropdownBox(Rectangle{0, 50, 150, 25}, modes, &modeSelected, modeDropdownExpanded)) {
-                    modeDropdownExpanded = !modeDropdownExpanded;
-                }
-                GuiLabel(Rectangle{160, 50, 150, 25}, "Rendering mode");
+                static bool lineDropdownExpanded = false;
+                drawDropDown(Rectangle{0, 50, 150, 25}, "Line algorithm",
+                              "My custom;Bresenham;Optimised Bresenham;Wu", &lineSelected, &lineDropdownExpanded, true);
+                
+                static bool triangleDropdownExpanded = false;
+                drawDropDown(Rectangle{0, 75, 150, 25}, "Triangle algorithm",
+                              "My custom;Line sweep;Barycentric", &triangleSelected, &triangleDropdownExpanded,
+                              !lineDropdownExpanded);
+
+                static bool shadingDropdownExpanded = false;
+                drawDropDown(Rectangle{0, 100, 150, 25}, "Shading algorithm",
+                              "None;Flat;Goroud;Phong", &shadingSelected, &shadingDropdownExpanded,
+                              !lineDropdownExpanded && !triangleDropdownExpanded);
 
                 static bool sceneDropdownExpanded = false;
-                static const char* scenes = "Lines;Triangles;Model";
-                if (!modeDropdownExpanded && GuiDropdownBox(Rectangle{0, 75, 150, 25}, scenes, &sceneSelected, sceneDropdownExpanded)) {
-                    sceneDropdownExpanded = !sceneDropdownExpanded;
-                }
-                GuiLabel(Rectangle{160, 75, 150, 25}, "Scene");
+                drawDropDown(Rectangle{0, 125, 150, 25}, "Scene",
+                              "Test;Wireframe;Random colors;Shaded", &sceneSelected, &sceneDropdownExpanded,
+                              !lineDropdownExpanded && !triangleDropdownExpanded && !shadingDropdownExpanded);
 		    }
 		    
 		    Color color = LIME;

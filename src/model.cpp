@@ -7,9 +7,7 @@
 #include "model.h"
 #include "vec.h"
 
-MModel::MModel(const char *filename) : verts_(), faces_() {
-    std::cout << "wtf is going on!!!!!!!!!!!!!! " << filename << std::endl;
-    
+TexturedModel::TexturedModel(const char* filename, const char* diffuseTextureFilename) {// : verts_(), faces_() {
     std::ifstream in;
     in.open (filename, std::ifstream::in);
     if (in.fail()) return;
@@ -22,35 +20,49 @@ MModel::MModel(const char *filename) : verts_(), faces_() {
             iss >> trash;
             Vec3f v;
             for (int i=0;i<3;i++) iss >> v.raw[i];
-            verts_.push_back(v);
+            vertices.push_back(v);
+        } else if (!line.compare(0, 3, "vt ")) {
+            iss >> trash;
+            iss >> trash;
+            Vec2f v;
+            for (int i=0;i<2;i++) iss >> v.raw[i];
+            float trashf;
+            iss >> trashf;
+            uvs.push_back(v);
+        } else if (!line.compare(0, 3, "vn ")) {
+            iss >> trash;
+            iss >> trash;
+            Vec3f v;
+            for (int i=0;i<3;i++) iss >> v.raw[i];
+            normals.push_back(v);
         } else if (!line.compare(0, 2, "f ")) {
             std::vector<int> f;
-            int itrash, idx;
+            std::vector<FaceIndices> fIndices;
+            int vertIndex;
+            int uvIndex;
+            int normalIndex;
             iss >> trash;
-            while (iss >> idx >> trash >> itrash >> trash >> itrash) {
-                idx--; // in wavefront obj all indices start at 1, not zero
-                f.push_back(idx);
+            while (iss >> vertIndex >> trash >> uvIndex >> trash >> normalIndex) {
+                f.push_back(vertIndex - 1);
+                fIndices.push_back(FaceIndices{vertIndex - 1, uvIndex - 1, normalIndex - 1});
             }
-            faces_.push_back(f);
+            faceIndices.push_back(fIndices);
         }
     }
-    std::cout << "!!!!!!!!# v# " << verts_.size() << " f# "  << faces_.size() << std::endl;
+
+    diffuse = LoadImage(diffuseTextureFilename);
 }
 
-int MModel::nverts() {
-    return (int)verts_.size();
-}
+Face faceData(TexturedModel& model, int i) {
+    Face f;
+    f.diffuseTexture = model.diffuse;
+    for (int j = 0; j < 3; j++) {
+        FaceIndices& indices = model.faceIndices[i][j];
+        f.points[j].worldPos = model.vertices[indices.vertIndex];
+        f.points[j].uv = model.uvs[indices.uvIndex];
+        f.points[j].normal = model.normals[indices.normalIndex];
+    }
 
-int MModel::nfaces() {
-    return (int)faces_.size();
+    return f;
 }
-
-std::vector<int> MModel::face(int idx) {
-    return faces_[idx];
-}
-
-Vec3f MModel::vert(int i) {
-    return verts_[i];
-}
-
 

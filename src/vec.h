@@ -20,6 +20,8 @@ struct Vec3 {
 	template<typename U> Vec3(Vec3<U> vec) : x((T)vec.x), y((T)vec.y), z((T)vec.z) {}
 	template<typename U> Vec3(Vec2<U> vec) : x((T)vec.x), y((T)vec.y), z(0) {}
 
+	inline Vec3<T> operator *(float f) const { return Vec3<T>(x * f, y * f, z * f); }
+	inline Vec3<T> operator +(const Vec3<T> &v) const { return Vec3<T>(x + v.x, y + v.y, z + v.z); }
 	inline Vec3<T> operator -(const Vec3<T> &v) const { return Vec3<T>(x - v.x, y - v.y, z - v.z); }
 	inline Vec3<T> operator -() const { return Vec3<T>(-x, -y, -z); }
 	T& operator[](int index) { return raw[index]; }
@@ -41,6 +43,8 @@ struct Vec2 {
 	template<typename U> Vec2(Vec2<U> vec) : x((T)vec.x), y((T)vec.y) {}
 	template<typename U> Vec2(Vec3<U> vec) : x((T)vec.x), y((T)vec.y) {}
 
+	inline Vec3<T> operator *(float f) const { return Vec2<T>(x * f, y * f); }
+	inline Vec3<T> operator +(const Vec2<T> &v) const { return Vec3<T>(x + v.x, y + v.y); }
 	inline Vec2<T> operator -(const Vec2<T> &v) const { return Vec2<T>(x - v.x, y - v.y); }
 	inline Vec2<T> operator -() const { return Vec2<T>(-x, -y); }
 	T& operator[](int index) { return raw[index]; }
