@@ -17,8 +17,10 @@ void setColor(RenderTarget& rt, int x, int y, Color color, float z = -std::numer
         int flippedY = rt.height - y;
         int index = flippedY * rt.width + x;
 
-        // TODO: Process z coordinate here when you work on the z buffer.
-        rt.pixels[index] = color;
+        if (z >= rt.zBuffer[index]) {
+            rt.zBuffer[index] = z;
+            rt.pixels[index] = color;
+        }
     }
 }
 
@@ -27,7 +29,8 @@ void clear(RenderTarget& rt, Color color) {
         for (int x = 0; x < rt.width; x++) {
             setColor(rt, x, y, color);
 
-            // TODO: Surely you did not forget to also clear the zbuffer, right?
+            int index = y * rt.width + x;
+            rt.zBuffer[index] = -std::numeric_limits<float>::max();
         }
     }
 }
@@ -109,9 +112,8 @@ void drawRandomColorModel(Renderer& renderer) {
             static_cast<unsigned char>(255)
         };
 
-        // TODO: uncomment once you have something rendering
-        // bool backface = normal.z > 0;
-        // if (backface) continue;
+        bool backface = normal.z > 0;
+        if (backface) continue;
 
         face.unshadedColor = randomColor;
         face.normal = -normal;
@@ -131,9 +133,8 @@ void drawModel(Renderer& renderer) {
         Vec3f normal = cross(face.points[2].worldPos - face.points[0].worldPos, face.points[1].worldPos - face.points[0].worldPos);
         normal = normalize(normal);
 
-        // TODO: uncomment once you have something rendering
-        // bool backface = normal.z > 0;
-        // if (backface) continue;
+        bool backface = normal.z > 0;
+        if (backface) continue;
 
         face.unshadedColor = WHITE;
         face.normal = -normal;
@@ -149,15 +150,105 @@ void drawModel(Renderer& renderer) {
 // Please ignore the z argument in setColor function for now.
 
 void drawLine(RenderTarget& rt, Vec2i a, Vec2i b, Color color) {
-   // TODO: write any line drawing algorithm you can come up with .
+    bool swapXY = std::abs(a.x - b.x) < std::abs(a.y - b.y);
+    if (swapXY) {
+        std::swap(a.x, a.y);
+        std::swap(b.x, b.y);
+    }
+
+    if (b.x < a.x) {
+        std::swap(a.x, b.x);
+        std::swap(a.y, b.y);
+    }
+
+    float xDiff = a.x - b.x;
+    float yDiff = a.y - b.y;
+    for (int x = a.x; x <= b.x; x++) {
+        float linePercentage = (float)(x - a.x) / xDiff;
+        int y = (yDiff * linePercentage) + a.y;
+        
+        if (swapXY) {
+            setColor(rt, y, x, color);
+        } else {
+            setColor(rt, x, y, color);
+        }
+    }
 }
 
 void drawLineBresenham(RenderTarget& rt, Vec2i a, Vec2i b, Color color) {
-    // TODO: implement Bresenham's algorithm.
+    bool swapXY = std::abs(a.x - b.x) < std::abs(a.y - b.y);
+    if (swapXY) {
+        std::swap(a.x, a.y);
+        std::swap(b.x, b.y);
+    }
+
+    if (b.x < a.x) {
+        std::swap(a.x, b.x);
+        std::swap(a.y, b.y);
+    }
+
+    float xDiff = a.x - b.x;
+    float yDiff = a.y - b.y;
+    float slope = std::abs(yDiff / xDiff);
+
+    int y = a.y;
+    float yProgress = 0;
+    for (int x = a.x; x <= b.x; x++) {
+        if (swapXY) {
+            setColor(rt, y, x, color);
+        } else {
+            setColor(rt, x, y, color);
+        }
+
+        yProgress += slope;
+        if (yProgress > 0.5) {
+            y += ((a.y < b.y) ? 1 : -1);
+            yProgress -= 1.0;
+        }
+    }
 }
 
 void drawLineOptimisedBresenham(RenderTarget& rt, Vec2i a, Vec2i b, Color color) {
-   // TODO: optimise the function above by eliminating divisions and floating point operations.
+    int xDiff = std::abs(a.x - b.x);
+    int yDiff = std::abs(a.y - b.y);
+
+    bool swapXY = xDiff < yDiff;
+    if (swapXY) {
+        std::swap(a.x, a.y);
+        std::swap(b.x, b.y);
+        std::swap(xDiff, yDiff);
+    }
+
+    if (b.x < a.x) {
+        std::swap(a.x, b.x);
+        std::swap(a.y, b.y);
+    }
+
+    int slope2 = yDiff * 2;
+    int y = a.y;
+    int yProgress = 0;
+    int xDiff2 = xDiff*2;
+    int yInc = ((a.y < b.y) ? 1 : -1);
+
+    if (swapXY) {
+        for (int x = a.x; x <= b.x; x++) {
+            setColor(rt, y, x, color);
+            yProgress += slope2;
+            if (yProgress > xDiff) {
+                y += yInc;
+                yProgress -= xDiff2;
+            }
+        }
+    } else {
+        for (int x = a.x; x <= b.x; x++) {
+            setColor(rt, x, y, color);
+            yProgress += slope2;
+            if (yProgress > xDiff) {
+                y += yInc;
+                yProgress -= xDiff2;
+            }
+        }
+    }
 }
 
 void drawLineWu(RenderTarget& rt, Vec2i a, Vec2i b, Color color) {
@@ -173,20 +264,104 @@ void drawLineWu(RenderTarget& rt, Vec2i a, Vec2i b, Color color) {
 // The function needs to fill in the triangle.
 
 void drawTriangleLineSweep(Renderer& renderer, Vec2i a, Vec2i b, Vec2i c, Face& face) {
-    // TODO: implement triangle rendering using line sweep algorithm.
+    // Sort a-to-b
+    if (a[1] > b[1]) std::swap(a, b); 
+    if (a[1] > c[1]) std::swap(a, c); 
+    if (b[1] > c[1]) std::swap(b, c); 
+
+    int acLength = c[1] - a[1];
+    if (acLength <= 0) return;
+
+    int abLength = b[1] - a[1];
+    if (abLength > 0) {
+        for (int y = std::max(a[1], 0); y <= std::min(b[1], renderer.rt.height); y++) {
+            float abProgress = (float)(y - a[1]) / abLength;
+            float acProgress = (float)(y - a[1]) / acLength;
+
+            int abX = a[0] + abProgress * (b[0] - a[0]);
+            int acX = a[0] + acProgress * (c[0] - a[0]);
+            if (abX < acX) {
+                std::swap(abX, acX);
+            }
+            for (int x = std::max(acX, 0); x <= std::min(abX, renderer.rt.width); x++) {
+                setColor(renderer.rt, x, y, face.unshadedColor);
+            }
+        }
+    }
+   
+    int bcLength = c[1] - b[1];
+    if (bcLength > 0) {
+        for (int y = std::max(b[1], 0); y <= std::min(c[1], renderer.rt.height); y++) {
+            float bcProgress = (float)(y - b[1]) / bcLength;
+            float acProgress = (float)(y - a[1]) / acLength;
+
+            int bcX = b[0] + bcProgress * (c[0] - b[0]);
+            int acX = a[0] + acProgress * (c[0] - a[0]);
+            if (acX < bcX) {
+                std::swap(acX, bcX);
+            }
+            for (int x = std::max(bcX, 0); x <= std::min(acX, renderer.rt.width); x++) {
+                setColor(renderer.rt, x, y, face.unshadedColor);
+            }
+        }
+    }
 }
 
 void drawTriangleBarycentric(Renderer& renderer, Vec2i a, Vec2i b, Vec2i c, Face& face) {
-    // TODO: implement triangle rendering using barycentric coordinates.
+    float minX = std::min(a.x, std::min(b.x, c.x));
+    float minY = std::min(a.y, std::min(b.y, c.y));
+    float maxX = std::max(a.x, std::max(b.x, c.x));
+    float maxY = std::max(a.y, std::max(b.y, c.y));
+
+    int yBound = std::clamp((int)maxY, 0, renderer.rt.height);
+    int xBound = std::clamp((int)maxX, 0, renderer.rt.width);
+
+    for (int y = std::clamp((int)minY, 0, renderer.rt.height); y <= yBound; y++) {
+        bool startedDrawingTriangle = false;
+
+        for (int x = std::clamp((int)minX, 0, renderer.rt.width); x <= xBound; x++) {
+            Vec3f bary = barycentric(x, y, a, b, c);
+            bool insideTriangle = bary[0] >= 0 && bary[1] >= 0 && bary[2] >= 0;
+
+            if (insideTriangle) {
+                startedDrawingTriangle = true;
+                setColor(renderer.rt, x, y, face.unshadedColor);
+            } else if(startedDrawingTriangle) {
+                break;
+            }
+        }
+    }
 }
 
 void drawTriangle(Renderer& renderer, Vec3f a, Vec3f b, Vec3f c, Face& face) {
-    // TODO: implement whichever algorithm again, however instead of using face.unshadedColor
-    // use renderer.shade() this time around.
+    float minX = std::min(a.x, std::min(b.x, c.x));
+    float minY = std::min(a.y, std::min(b.y, c.y));
+    float maxX = std::max(a.x, std::max(b.x, c.x));
+    float maxY = std::max(a.y, std::max(b.y, c.y));
 
-    // Additionally, use barycentric coordinates to calculate z coordinate and pass it
-    // to the setColor function. For it to work properly you will need to add Z buffer
-    // functionality to setColor and clear functions.
+    
+    int yBound = std::clamp((int)maxY, 0, renderer.rt.height);
+    int xBound = std::clamp((int)maxX, 0, renderer.rt.width);
+
+    for (int y = std::clamp((int)minY, 0, renderer.rt.height); y <= yBound; y++) {
+        bool startedDrawingTriangle = false;
+
+        for (int x = std::clamp((int)minX, 0, renderer.rt.width); x <= xBound; x++) {
+            Vec3f bary = barycentric(x, y, a, b, c);
+            bool insideTriangle = bary[0] >= 0 && bary[1] >= 0 && bary[2] >= 0;
+
+            if (insideTriangle) {
+                startedDrawingTriangle = true;
+
+                float z = bary[0] * a.z + bary[1] * b.z + bary[2] * c.z;
+                Color color = renderer.shade(renderer, face, bary);
+
+                setColor(renderer.rt, x, y, color, z);
+            } else if(startedDrawingTriangle) {
+                break;
+            }
+        }
+    }
 }
 
 
@@ -200,16 +375,72 @@ Color noShading(Renderer& renderer, Face& face, Vec3f bary) {
 }
 
 Color flatShading(Renderer& renderer, Face& face, Vec3f bary) {
-    // TODO: implement flat shading.
-    return face.unshadedColor;
+    float lightIntensity = dot(-renderer.lightDir, face.normal);
+    lightIntensity = std::clamp(lightIntensity, 0.f, 1.f);
+
+    Color color = face.unshadedColor;
+    // Color color = getDiffuse(face, bary);
+    return Color {
+        static_cast<unsigned char>(color.r * lightIntensity),
+        static_cast<unsigned char>(color.g * lightIntensity),
+        static_cast<unsigned char>(color.b * lightIntensity),
+        static_cast<unsigned char>(255)
+    };
 }
 
 Color goroudShading(Renderer& renderer, Face& face, Vec3f bary) {
-    // TODO: implement Goroud shading.
-    return face.unshadedColor;
+    // Usually done once per triangle. So shouldn't live here, but rather outside the pixel drawing loop...
+    // (it's here just for the sake of simplicity)
+    float diffuse[3];
+    float specular[3];
+    for (int i = 0; i < 3; i++)
+    {
+        Vec3f normal = face.points[i].normal;
+
+        normal = normalize(normal);
+        diffuse[i] = dot(-renderer.lightDir, normal);
+
+        Vec3f reflected = renderer.lightDir - (normal * 2.f * dot(normal, renderer.lightDir));
+        specular[i] = std::pow(std::max(dot(Vec3f(0, 0, 1), reflected), 0.f), 32.f);
+    }
+
+    float interpDiffuse = diffuse[0] * bary.x + diffuse[1] * bary.y + diffuse[2] * bary.z;
+    float interpSpecular = specular[0] * bary.x + specular[1] * bary.y + specular[2] * bary.z;
+    float lighting = std::clamp(interpDiffuse + interpSpecular * 0.5f, 0.f, 1.f);
+
+    Color color = face.unshadedColor;
+    // Color color = getDiffuse(face, bary);
+    return Color {
+        static_cast<unsigned char>(color.r * lighting),
+        static_cast<unsigned char>(color.g * lighting),
+        static_cast<unsigned char>(color.b * lighting),
+        static_cast<unsigned char>(255)
+    };
 }
 
+// If you don't think there is a difference between Goroud and Phong, turn off the texture
+// (just use face.unshadedColor), check the "Move light" checkbox and pay close attention
+// to the specular hightlights (the brightest spot in the image that moves along with the light).
+// Phong version looks smooth, meanwhile Goroud is not and you can clearly see the triangle boundaries.
 Color phongShading(Renderer& renderer, Face& face, Vec3f bary) {
-    // TODO: implement Phong shading.
-    return face.unshadedColor;
+    Vec3f normal = face.points[0].normal * bary.x + 
+               face.points[1].normal * bary.y +
+               face.points[2].normal * bary.z;
+    normal = normalize(normal);
+
+    float diffuseLighting = dot(-renderer.lightDir, normal);
+
+    Vec3f reflected = renderer.lightDir - (normal * 2.f * dot(normal, renderer.lightDir));
+    float specularLighting = std::pow(std::max(dot(Vec3f(0, 0, 1), reflected), 0.f), 32.f);
+
+    float lighting = std::clamp(diffuseLighting + specularLighting * 0.5f, 0.f, 1.f);
+
+    Color color = face.unshadedColor;
+    // Color color = getDiffuse(face, bary);
+    return Color {
+        static_cast<unsigned char>(color.r * lighting),
+        static_cast<unsigned char>(color.g * lighting),
+        static_cast<unsigned char>(color.b * lighting),
+        static_cast<unsigned char>(255)
+    };
 }
